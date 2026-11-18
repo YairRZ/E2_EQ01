@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5015" Fecha="2026-09-07T10:15:00" Moneda="MXN"
+  SubTotal="937852.28" Total="1087908.64" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="AIR200215MN7" Nombre="AISLAMIENTOS Y RECUBRIMIENTOS DEL GOLFO SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SERVICIOS DE PLANEACIÓN" ValorUnitario="409809.02" Importe="409809.02" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="ANÁLISIS DE VIBRACIÓN" ValorUnitario="53420.44" Importe="53420.44" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SISTEMAS DE CONTROL DISTRIBUIDO / SCADA (SUPERVISIÓN, CONTROL Y ADQUISICIÓN DE D" ValorUnitario="402272.84" Importe="402272.84" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="VÁLVULAS - DE DIAFRAGMA" ValorUnitario="72349.98" Importe="72349.98" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="150056.36">
+    <cfdi:Traslados><cfdi:Traslado Base="937852.28" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="150056.36"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="0B599562-2227-219F-551F-F086C1B5B5CA" FechaTimbrado="2026-09-07T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5014" Fecha="2026-11-11T10:15:00" Moneda="MXN"
+  SubTotal="668969.06" Total="776004.11" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="SPT180512KL3" Nombre="SERVICIOS PETROLEROS DEL TROPICO SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SISTEMA DE SUJECIÓN DE TUBERÍAS COLGANTES" ValorUnitario="112509.27" Importe="112509.27" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="BANDEJA Y ACCESORIOS DE CABLE" ValorUnitario="419686.62" Importe="419686.62" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="REVESTIMIENTOS" ValorUnitario="136773.17" Importe="136773.17" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="107035.05">
+    <cfdi:Traslados><cfdi:Traslado Base="668969.06" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="107035.05"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="C9C23E69-D82C-7565-4BB9-07EC13C11754" FechaTimbrado="2026-11-11T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

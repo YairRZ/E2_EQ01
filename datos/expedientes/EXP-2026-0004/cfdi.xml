@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5004" Fecha="2026-10-14T10:15:00" Moneda="USD" TipoCambio="19.1200"
+  SubTotal="15628.18" Total="18128.69" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="MEV190104ZX2" Nombre="MANTENIMIENTO ELECTRICO VILLAHERMOSA SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="EQUIPOS DE ALIMENTACIÓN - HIDRÁULICOS" ValorUnitario="12606.13" Importe="12606.13" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="MOTORES - ELÉCTRICOS" ValorUnitario="3022.05" Importe="3022.05" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="2500.51">
+    <cfdi:Traslados><cfdi:Traslado Base="15628.18" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="2500.51"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="6651529E-8268-690B-A438-25B559E4B671" FechaTimbrado="2026-10-14T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

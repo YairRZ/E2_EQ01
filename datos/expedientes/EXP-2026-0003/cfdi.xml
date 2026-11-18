@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5003" Fecha="2026-10-01T10:15:00" Moneda="MXN"
+  SubTotal="594619.55" Total="689758.68" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="PIN150707HJ4" Nombre="PERFORACION E INSTRUMENTACION NACIONAL SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="BUQUES DE SUMINISTRO" ValorUnitario="284248.10" Importe="284248.10" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SERVICIOS DE FUNDICIÓN" ValorUnitario="115425.08" Importe="115425.08" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="FILTROS - AIRE" ValorUnitario="53631.86" Importe="53631.86" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="TUBO DE PERFORACIÓN" ValorUnitario="141314.51" Importe="141314.51" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="95139.13">
+    <cfdi:Traslados><cfdi:Traslado Base="594619.55" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="95139.13"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="3F07F814-91D6-3F78-E3E9-DE99F10C718B" FechaTimbrado="2026-10-01T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

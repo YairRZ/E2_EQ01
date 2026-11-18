@@ -1,0 +1,292 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  E2_EQ01 Fase 4 - Curado del lago del Validador de Cartas de Contenido Nacional.
+  Job de Glue Flex que convierte raw/ (JSON) a Parquet particionado por anio/mes en curated/,
+  tablas del catalogo con proyeccion de particiones y ejecucion diaria programada.
+
+Metadata:
+  com.aws.cloudformation.Context:
+    arch: "S3 raw/ JSON -> Glue Flex (Spark) -> S3 curated/ Parquet anio/mes -> Athena workgroup cn-eq01"
+    must:
+      - "Solo us-east-2. Importa el lago, la CMK y la base de Glue del stack cn-eq01-base."
+      - "El rol del job lee solo raw/extracciones/cfdi/ y raw/catalogo_se/; escribe solo curated/ y glue-temp/."
+      - "Proyeccion de particiones: Athena no necesita crawler ni MSCK REPAIR."
+    ref:
+      - "E2_EQ01/README.md"
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: cn-eq01
+    AllowedPattern: "^[a-z0-9-]{3,20}$"
+    Description: Mismo valor que en el stack base; forma el nombre de los exports.
+  HashScript:
+    Type: String
+    AllowedPattern: "^[a-f0-9]{12}$"
+    Description: 12 caracteres del SHA-256 de glue/curar.py. Lo calcula el script de despliegue.
+  HorarioDiario:
+    Type: String
+    Default: "cron(0 7 * * ? *)"
+    Description: Ejecucion diaria del curado (07:00 UTC = 01:00 en Ciudad de Mexico).
+
+Resources:
+  # ---------- Rol del job: minimo privilegio por prefijo ----------
+  RolGlueCurar:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Proyecto}-glue-curar"
+      Description: Rol del job de Glue que cura raw/ hacia curated/
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: glue.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSGlueServiceRole"
+      Policies:
+        - PolicyName: lago-por-prefijo
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListarPrefijosPermitidos
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                Condition:
+                  StringLike:
+                    s3:prefix:
+                      - "raw/extracciones/cfdi/*"
+                      - "raw/catalogo_se/*"
+                      - "curated/*"
+                      - "glue-temp/*"
+                      - "despliegue/fase4/*"
+              - Sid: LeerRaw
+                Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - !Sub
+                    - "${BucketArn}/raw/extracciones/cfdi/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/raw/catalogo_se/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/despliegue/fase4/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: EscribirCuratedYTemporales
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource:
+                  - !Sub
+                    - "${BucketArn}/curated/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/glue-temp/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: UsarLlaveDelLago
+                Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey, kms:DescribeKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+
+  # ---------- Job de Glue Flex ----------
+  JobCurar:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: !Sub "${Proyecto}-curar"
+      Description: raw/extracciones/cfdi (JSON) y raw/catalogo_se -> curated/ Parquet particionado por anio/mes
+      Role: !GetAtt RolGlueCurar.Arn
+      GlueVersion: "4.0"
+      ExecutionClass: FLEX          # capacidad sobrante: ~34 % menos que STANDARD
+      WorkerType: G.1X
+      NumberOfWorkers: 2            # minimo permitido; el volumen es de KB
+      Timeout: 20                   # minutos; corta un job atorado
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: "3"
+        ScriptLocation: !Sub
+          - "s3://${Bucket}/despliegue/fase4/curar-${HashScript}.py"
+          - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+      DefaultArguments:
+        "--job-language": python
+        "--LAGO_BUCKET": { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        "--TempDir": !Sub
+          - "s3://${Bucket}/glue-temp/"
+          - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        "--enable-metrics": "true"
+        "--job-bookmark-option": job-bookmark-disable
+      Tags:
+        proyecto: !Ref Proyecto
+
+  DisparoDiario:
+    Type: AWS::Glue::Trigger
+    Properties:
+      Name: !Sub "${Proyecto}-curar-diario"
+      Description: Curado diario de raw/ a curated/
+      Type: SCHEDULED
+      Schedule: !Ref HorarioDiario
+      StartOnCreation: true
+      Actions:
+        - JobName: !Ref JobCurar
+
+  # ---------- Tabla raw (JSON) para comparar bytes contra Parquet ----------
+  TablaCfdiRaw:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+      TableInput:
+        Name: cfdi_raw
+        Description: CFDI leidos por la Lambda leer_cfdi (un JSON por expediente, capa raw)
+        TableType: EXTERNAL_TABLE
+        Parameters: { classification: json }
+        StorageDescriptor:
+          Location: !Sub
+            - "s3://${Bucket}/raw/extracciones/cfdi/"
+            - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: expediente_id, Type: string }
+            - { Name: valido, Type: boolean }
+            - { Name: errores, Type: "array<string>" }
+            - { Name: version, Type: string }
+            - { Name: uuid, Type: string }
+            - { Name: serie, Type: string }
+            - { Name: folio, Type: string }
+            - { Name: fecha, Type: string }
+            - { Name: moneda, Type: string }
+            - { Name: tipo_cambio, Type: string }
+            - { Name: subtotal, Type: string }
+            - { Name: iva, Type: string }
+            - { Name: total, Type: string }
+            - { Name: emisor_rfc, Type: string }
+            - { Name: emisor_nombre, Type: string }
+            - { Name: receptor_rfc, Type: string }
+            - { Name: conceptos, Type: "array<struct<descripcion:string,importe:string,clave_prod_serv:string>>" }
+
+  # ---------- Tablas curated (Parquet, proyeccion de particiones) ----------
+  TablaExpedientesCurated:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+      TableInput:
+        Name: expedientes
+        Description: Un renglon por expediente, montos homologados a MXN (capa curated)
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: parquet
+          projection.enabled: "true"
+          projection.anio.type: integer
+          projection.anio.range: "2024,2030"
+          projection.mes.type: integer
+          projection.mes.range: "1,12"
+          storage.location.template: !Sub
+            - "s3://${Bucket}/curated/expedientes/anio=${!anio}/mes=${!mes}/"
+            - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        PartitionKeys:
+          - { Name: anio, Type: int }
+          - { Name: mes, Type: int }
+        StorageDescriptor:
+          Location: !Sub
+            - "s3://${Bucket}/curated/expedientes/"
+            - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: expediente_id, Type: string }
+            - { Name: cfdi_uuid, Type: string }
+            - { Name: proveedor_rfc, Type: string }
+            - { Name: proveedor_nombre, Type: string }
+            - { Name: receptor_rfc, Type: string }
+            - { Name: fecha_cfdi, Type: date }
+            - { Name: moneda, Type: string }
+            - { Name: tipo_cambio, Type: "decimal(12,6)" }
+            - { Name: subtotal, Type: "decimal(18,2)" }
+            - { Name: iva, Type: "decimal(18,2)" }
+            - { Name: total, Type: "decimal(18,2)" }
+            - { Name: subtotal_mxn, Type: "decimal(18,2)" }
+            - { Name: num_conceptos, Type: int }
+            - { Name: cfdi_valido, Type: boolean }
+            - { Name: errores_cfdi, Type: string }
+            - { Name: curado_en, Type: timestamp }
+
+  TablaConceptosCurated:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+      TableInput:
+        Name: conceptos
+        Description: Un renglon por concepto del CFDI, con importe en MXN (capa curated)
+        TableType: EXTERNAL_TABLE
+        Parameters:
+          classification: parquet
+          projection.enabled: "true"
+          projection.anio.type: integer
+          projection.anio.range: "2024,2030"
+          projection.mes.type: integer
+          projection.mes.range: "1,12"
+          storage.location.template: !Sub
+            - "s3://${Bucket}/curated/conceptos/anio=${!anio}/mes=${!mes}/"
+            - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        PartitionKeys:
+          - { Name: anio, Type: int }
+          - { Name: mes, Type: int }
+        StorageDescriptor:
+          Location: !Sub
+            - "s3://${Bucket}/curated/conceptos/"
+            - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: expediente_id, Type: string }
+            - { Name: linea, Type: int }
+            - { Name: clave_prod_serv, Type: string }
+            - { Name: descripcion, Type: string }
+            - { Name: moneda, Type: string }
+            - { Name: importe, Type: "decimal(18,2)" }
+            - { Name: importe_mxn, Type: "decimal(18,2)" }
+
+  TablaCatalogoSeCurated:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+      TableInput:
+        Name: catalogo_se
+        Description: Catalogo oficial de la Secretaria de Economia en Parquet (capa curated)
+        TableType: EXTERNAL_TABLE
+        Parameters: { classification: parquet }
+        StorageDescriptor:
+          Location: !Sub
+            - "s3://${Bucket}/curated/catalogo_se/"
+            - Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+          InputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe
+          Columns:
+            - { Name: codigo_se, Type: string }
+            - { Name: grupo_clave, Type: string }
+            - { Name: actividad, Type: string }
+            - { Name: grupo, Type: string }
+
+Outputs:
+  JobCurar:
+    Value: !Ref JobCurar
+  RolGlueCurar:
+    Value: !GetAtt RolGlueCurar.Arn
+  DisparoDiario:
+    Value: !Ref DisparoDiario

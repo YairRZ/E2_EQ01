@@ -1,0 +1,246 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  E2_EQ01 Fase 1 - Lago de datos y seguridad base del Validador Inteligente de Cartas de Contenido Nacional.
+  Llave KMS, bucket con capas raw/curated/athena-results y ciclo de vida, tabla DynamoDB,
+  base de datos de Glue y workgroup de Athena con limite de bytes.
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: cn-eq01
+    AllowedPattern: "^[a-z0-9-]{3,20}$"
+  RetencionFiscalDias:
+    Type: Number
+    Default: 1825
+    Description: Dias que se conservan cartas y CFDI originales (5 anios, art. 30 del CFF).
+  LimiteBytesAthena:
+    Type: Number
+    Default: 1073741824
+    MinValue: 10485760
+    Description: Maximo de bytes que puede escanear una consulta en el workgroup (1 GB).
+
+Resources:
+  # ---------- Seguridad: cifrado con llave propia (CMK) ----------
+  LlaveKms:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: !Sub "${Proyecto} - cifra lago S3, DynamoDB y resultados de Athena"
+      EnableKeyRotation: true
+      PendingWindowInDays: 7
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AdministracionPorIAMDeLaCuenta
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+
+  AliasLlave:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: !Sub "alias/${Proyecto}"
+      TargetKeyId: !Ref LlaveKms
+
+  # ---------- Lago de datos ----------
+  BucketLago:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${Proyecto}-lago-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: aws:kms
+              KMSMasterKeyID: !GetAtt LlaveKms.Arn
+            BucketKeyEnabled: true   # reduce llamadas a KMS (y su costo) hasta 99 %
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled             # protege contra borrados accidentales en raw/
+      NotificationConfiguration:
+        EventBridgeConfiguration:
+          EventBridgeEnabled: true  # la Fase 2 escucha "Object Created" en EventBridge
+      LifecycleConfiguration:
+        Rules:
+          - Id: raw-expedientes-originales
+            Status: Enabled
+            Prefix: raw/expedientes/
+            Transitions:
+              - { StorageClass: STANDARD_IA, TransitionInDays: 30 }
+              - { StorageClass: GLACIER_IR, TransitionInDays: 90 }
+            ExpirationInDays: !Ref RetencionFiscalDias
+          - Id: raw-extracciones-regenerables
+            Status: Enabled
+            Prefix: raw/extracciones/
+            Transitions:
+              - { StorageClass: STANDARD_IA, TransitionInDays: 30 }
+            ExpirationInDays: 365
+          - Id: raw-resultados
+            Status: Enabled
+            Prefix: raw/resultados/
+            Transitions:
+              - { StorageClass: STANDARD_IA, TransitionInDays: 90 }
+            ExpirationInDays: !Ref RetencionFiscalDias
+          - Id: curated-intelligent-tiering
+            Status: Enabled
+            Prefix: curated/
+            Transitions:
+              - { StorageClass: INTELLIGENT_TIERING, TransitionInDays: 0 }
+          - Id: athena-results-7-dias
+            Status: Enabled
+            Prefix: athena-results/
+            ExpirationInDays: 7
+          - Id: glue-temporal-3-dias
+            Status: Enabled
+            Prefix: glue-temp/
+            ExpirationInDays: 3
+          - Id: limpieza-general
+            Status: Enabled
+            Prefix: ""
+            AbortIncompleteMultipartUpload:
+              DaysAfterInitiation: 1
+            NoncurrentVersionExpiration:
+              NoncurrentDays: 30
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+
+  PoliticaBucketLago:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref BucketLago
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: SoloTLS
+            Effect: Deny
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !GetAtt BucketLago.Arn
+              - !Sub "${BucketLago.Arn}/*"
+            Condition:
+              Bool:
+                aws:SecureTransport: "false"
+
+  # ---------- Operacion y auditoria: DynamoDB (tabla unica) ----------
+  TablaExpedientes:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: !Sub "${Proyecto}-expedientes"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+        - { AttributeName: sk, AttributeType: S }
+        - { AttributeName: gsi1pk, AttributeType: S }
+        - { AttributeName: gsi1sk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+        - { AttributeName: sk, KeyType: RANGE }
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1-estado
+          KeySchema:
+            - { AttributeName: gsi1pk, KeyType: HASH }
+            - { AttributeName: gsi1sk, KeyType: RANGE }
+          Projection:
+            ProjectionType: INCLUDE
+            NonKeyAttributes: [expediente_id, estado, creado_por]
+      TimeToLiveSpecification:
+        AttributeName: expira_en
+        Enabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      SSESpecification:
+        SSEEnabled: true
+        SSEType: KMS
+        KMSMasterKeyId: !Ref LlaveKms
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+
+  # ---------- Catalogo y consultas ----------
+  BaseGlue:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: !Join ["_", !Split ["-", !Ref Proyecto]]
+        Description: Catalogo del lago del Validador de Cartas CN (raw y curated)
+
+  TablaCatalogoSeRaw:
+    Type: AWS::Glue::Table
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseName: !Ref BaseGlue
+      TableInput:
+        Name: catalogo_se_raw
+        Description: Catalogo oficial de la Secretaria de Economia (JSON lines, capa raw)
+        TableType: EXTERNAL_TABLE
+        Parameters: { classification: json }
+        StorageDescriptor:
+          Location: !Sub "s3://${BucketLago}/raw/catalogo_se/"
+          InputFormat: org.apache.hadoop.mapred.TextInputFormat
+          OutputFormat: org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+          SerdeInfo:
+            SerializationLibrary: org.openx.data.jsonserde.JsonSerDe
+          Columns:
+            - { Name: codigo_se, Type: string }
+            - { Name: actividad, Type: string }
+            - { Name: grupo, Type: string }
+
+  WorkgroupAthena:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: !Ref Proyecto
+      Description: Consultas del lago con limite de bytes y resultados cifrados
+      RecursiveDeleteOption: true
+      State: ENABLED
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: true
+        BytesScannedCutoffPerQuery: !Ref LimiteBytesAthena
+        EngineVersion:
+          SelectedEngineVersion: "Athena engine version 3"
+        ResultConfiguration:
+          OutputLocation: !Sub "s3://${BucketLago}/athena-results/"
+          EncryptionConfiguration:
+            EncryptionOption: SSE_KMS
+            KmsKey: !GetAtt LlaveKms.Arn
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+
+Outputs:
+  BucketLago:
+    Value: !Ref BucketLago
+    Export: { Name: !Sub "${Proyecto}-bucket-lago" }
+  BucketLagoArn:
+    Value: !GetAtt BucketLago.Arn
+    Export: { Name: !Sub "${Proyecto}-bucket-lago-arn" }
+  LlaveKmsArn:
+    Value: !GetAtt LlaveKms.Arn
+    Export: { Name: !Sub "${Proyecto}-kms-arn" }
+  TablaExpedientes:
+    Value: !Ref TablaExpedientes
+    Export: { Name: !Sub "${Proyecto}-tabla" }
+  TablaExpedientesArn:
+    Value: !GetAtt TablaExpedientes.Arn
+    Export: { Name: !Sub "${Proyecto}-tabla-arn" }
+  BaseGlue:
+    Value: !Ref BaseGlue
+    Export: { Name: !Sub "${Proyecto}-glue-db" }
+  WorkgroupAthena:
+    Value: !Ref WorkgroupAthena
+    Export: { Name: !Sub "${Proyecto}-workgroup" }

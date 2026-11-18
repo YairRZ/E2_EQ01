@@ -1,0 +1,5 @@
+# Dependencias para correr los scripts y generar los datos sintéticos en local.
+boto3>=1.34          # AWS SDK
+cfn-lint>=1.0        # validación de las plantillas de infra/
+reportlab>=4.0       # datos/generar_expedientes.py
+Pillow>=10.0         # datos/generar_expedientes.py

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5001" Fecha="2026-09-01T10:15:00" Moneda="MXN"
+  SubTotal="1138035.36" Total="1320121.02" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="PIN150707HJ4" Nombre="PERFORACION E INSTRUMENTACION NACIONAL SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="VÁLVULAS DE COMPUERTA Y GLOBO/ASIENTO" ValorUnitario="404123.13" Importe="404123.13" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="REMOLQUES - AMBIENTALES" ValorUnitario="406323.69" Importe="406323.69" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="PILOTES" ValorUnitario="327588.54" Importe="327588.54" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="182085.66">
+    <cfdi:Traslados><cfdi:Traslado Base="1138035.36" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="182085.66"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="3B8FAA18-37F8-A88B-17FC-695A07A0CA6E" FechaTimbrado="2026-09-01T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

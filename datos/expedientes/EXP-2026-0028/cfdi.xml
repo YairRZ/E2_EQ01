@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5028" Fecha="2026-11-13T10:15:00" Moneda="USD" TipoCambio="17.9600"
+  SubTotal="18321.25" Total="21252.65" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="CIS160930RT5" Nombre="CONSTRUCCIONES INDUSTRIALES DEL SURESTE SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="AMBIENTAL (INSTRUMENTACIÓN ANALÍTICA)" ValorUnitario="1759.13" Importe="1759.13" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="TUERCAS/EMPAQUES/ARNESES" ValorUnitario="7379.39" Importe="7379.39" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="BOMBAS" ValorUnitario="9182.73" Importe="9182.73" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="2931.40">
+    <cfdi:Traslados><cfdi:Traslado Base="18321.25" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="2931.40"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="5B80B8D1-8788-DFED-78C0-4ED8FDD4FF21" FechaTimbrado="2026-11-13T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

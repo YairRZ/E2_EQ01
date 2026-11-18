@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5021" Fecha="2026-10-09T10:15:00" Moneda="MXN"
+  SubTotal="520030.79" Total="603235.72" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="MEV190104ZX2" Nombre="MANTENIMIENTO ELECTRICO VILLAHERMOSA SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="ALMACENAMIENTO DE INFORMACIÓN GEOFÍSICA" ValorUnitario="124497.47" Importe="124497.47" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="DRENAJE PLUVIAL" ValorUnitario="235018.05" Importe="235018.05" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="INGENIERÍA PETROLERA" ValorUnitario="134011.94" Importe="134011.94" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="BARRAS" ValorUnitario="26503.33" Importe="26503.33" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="83204.93">
+    <cfdi:Traslados><cfdi:Traslado Base="520030.79" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="83204.93"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="B852B3CD-9442-B5E6-9583-1D58EF4C5119" FechaTimbrado="2026-10-09T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

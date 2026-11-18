@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5029" Fecha="2026-10-08T10:15:00" Moneda="MXN"
+  SubTotal="972661.41" Total="1128287.24" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="SPT180512KL3" Nombre="SERVICIOS PETROLEROS DEL TROPICO SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="TANQUES - PRESIÓN" ValorUnitario="202146.69" Importe="202146.69" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="INDICADORES DE TEMPERATURA" ValorUnitario="71177.61" Importe="71177.61" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="CARGA DIMENSIONAL" ValorUnitario="321067.83" Importe="321067.83" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SISTEMA DE CONTROL DE CABEZA DE POZO" ValorUnitario="378269.28" Importe="378269.28" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="155625.83">
+    <cfdi:Traslados><cfdi:Traslado Base="972661.41" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="155625.83"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="D883E3F8-CC98-03DE-12DE-9E5A7387928A" FechaTimbrado="2026-10-08T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

@@ -1,0 +1,478 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  E2_EQ01 Fase 5 - Roles IAM por persona del Validador Inteligente de Cartas de Contenido Nacional.
+  Duenio de datos, ingeniero de datos, analista y auditor, con minimo privilegio por prefijo del lago.
+  Los roles se asumen con sts:AssumeRole desde la misma cuenta; no se asignan a miembros del equipo.
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: cn-eq01
+    AllowedPattern: "^[a-z0-9-]{3,20}$"
+  DuracionSesionSegundos:
+    Type: Number
+    Default: 3600
+    MinValue: 900
+    MaxValue: 43200
+    Description: Duracion maxima de la sesion al asumir cada rol (1 hora).
+
+Resources:
+  # =====================================================================
+  # 1. DUENIO DE DATOS (cumplimiento / contenido nacional)
+  #    Puede: leer todo el lago y la tabla, consultar en Athena, resolver la revision humana.
+  #    No puede: borrar objetos ni versiones, cambiar politicas, roles, llaves o infraestructura.
+  # =====================================================================
+  RolDuenioDatos:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Proyecto}-persona-duenio-datos"
+      Description: Duenio de los datos de cartas y CFDI. Lee todo, decide la revision humana, no borra ni cambia infraestructura.
+      MaxSessionDuration: !Ref DuracionSesionSegundos
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: duenio-datos
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: LeerTodoElLago
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation, s3:GetObject, s3:GetObjectVersion, s3:GetLifecycleConfiguration]
+                Resource:
+                  - { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: ResultadosDeAthena
+                Effect: Allow
+                Action: [s3:PutObject]
+                Resource: !Sub
+                  - "${BucketArn}/athena-results/*"
+                  - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: ConsultarTablaYBitacora
+                Effect: Allow
+                Action: [dynamodb:GetItem, dynamodb:Query, dynamodb:DescribeTable]
+                Resource:
+                  - { Fn::ImportValue: !Sub "${Proyecto}-tabla-arn" }
+                  - !Sub
+                    - "${TablaArn}/index/*"
+                    - TablaArn: { Fn::ImportValue: !Sub "${Proyecto}-tabla-arn" }
+              - Sid: ConsultasAthena
+                Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:StopQueryExecution
+                  - athena:ListQueryExecutions
+                  - athena:GetWorkGroup
+                Resource: !Sub "arn:${AWS::Partition}:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${Proyecto}"
+              - Sid: CatalogoGlue
+                Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub
+                    - "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${Db}"
+                    - Db: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+                  - !Sub
+                    - "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${Db}/*"
+                    - Db: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+              - Sid: ResolverRevisionHumana
+                Effect: Allow
+                Action: [states:SendTaskSuccess, states:SendTaskFailure, states:DescribeExecution]
+                Resource: "*"
+              - Sid: BandejaDeRevision
+                Effect: Allow
+                Action: [sqs:ReceiveMessage, sqs:DeleteMessage, sqs:GetQueueAttributes]
+                Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${Proyecto}-ingesta-revision"
+              - Sid: DescifrarConLaLlaveDelProyecto
+                Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+              - Sid: NuncaBorrarNiCambiarControles
+                Effect: Deny
+                Action:
+                  - s3:DeleteObject
+                  - s3:DeleteObjectVersion
+                  - s3:PutBucketPolicy
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutBucketVersioning
+                  - dynamodb:DeleteItem
+                  - dynamodb:DeleteTable
+                  - kms:ScheduleKeyDeletion
+                  - kms:DisableKey
+                  - iam:*
+                Resource: "*"
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+        - { Key: persona, Value: duenio-datos }
+
+  # =====================================================================
+  # 2. INGENIERO DE DATOS (operacion del pipeline)
+  #    Puede: operar Step Functions, Glue y Lambdas cn-eq01-*, redirigir la DLQ, leer logs,
+  #           leer y escribir extracciones, resultados, curated y artefactos de despliegue.
+  #    No puede: abrir las cartas y CFDI originales (raw/expedientes/), tocar IAM ni la llave KMS,
+  #              borrar el bucket o la tabla.
+  # =====================================================================
+  RolIngeniero:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Proyecto}-persona-ingeniero"
+      Description: Ingeniero de datos. Opera el pipeline y los datos derivados; no abre documentos originales ni toca IAM o KMS.
+      MaxSessionDuration: !Ref DuracionSesionSegundos
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: ingeniero
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListarElLago
+                Effect: Allow
+                Action: [s3:ListBucket, s3:GetBucketLocation]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: DatosDerivadosYDespliegue
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:DeleteObject]
+                Resource:
+                  - !Sub
+                    - "${BucketArn}/raw/extracciones/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/raw/resultados/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/curated/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/despliegue/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/glue-temp/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                  - !Sub
+                    - "${BucketArn}/athena-results/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: OperarStepFunctions
+                Effect: Allow
+                Action:
+                  - states:StartExecution
+                  - states:StopExecution
+                  - states:RedriveExecution
+                  - states:DescribeStateMachine
+                  - states:ListExecutions
+                Resource: !Sub "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:stateMachine:${Proyecto}-*"
+              - Sid: VerEjecuciones
+                Effect: Allow
+                Action: [states:DescribeExecution, states:GetExecutionHistory]
+                Resource: !Sub "arn:${AWS::Partition}:states:${AWS::Region}:${AWS::AccountId}:execution:${Proyecto}-*:*"
+              - Sid: OperarGlue
+                Effect: Allow
+                Action: [glue:StartJobRun, glue:GetJobRun, glue:GetJobRuns, glue:GetJob, glue:BatchStopJobRun]
+                Resource: !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:job/${Proyecto}-*"
+              - Sid: CatalogoGlue
+                Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub
+                    - "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${Db}"
+                    - Db: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+                  - !Sub
+                    - "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${Db}/*"
+                    - Db: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+              - Sid: OperarLambdas
+                Effect: Allow
+                Action: [lambda:GetFunction, lambda:GetFunctionConfiguration, lambda:InvokeFunction]
+                Resource: !Sub "arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${Proyecto}-*"
+              - Sid: RedirigirDlq
+                Effect: Allow
+                Action:
+                  - sqs:GetQueueAttributes
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:StartMessageMoveTask
+                  - sqs:ListMessageMoveTasks
+                Resource: !Sub "arn:${AWS::Partition}:sqs:${AWS::Region}:${AWS::AccountId}:${Proyecto}-*"
+              - Sid: ConsultasAthena
+                Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:StopQueryExecution
+                  - athena:ListQueryExecutions
+                  - athena:GetWorkGroup
+                Resource: !Sub "arn:${AWS::Partition}:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${Proyecto}"
+              - Sid: Observabilidad
+                Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                  - logs:FilterLogEvents
+                  - logs:GetLogEvents
+                  - logs:StartQuery
+                  - logs:GetQueryResults
+                  - cloudwatch:GetMetricData
+                  - cloudwatch:DescribeAlarms
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackEvents
+                Resource: "*"
+              - Sid: UsarLaLlaveDelProyecto
+                Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+              - Sid: SinDocumentosOriginales
+                Effect: Deny
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource: !Sub
+                  - "${BucketArn}/raw/expedientes/*"
+                  - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: SinCambiosDeSeguridad
+                Effect: Deny
+                Action:
+                  - iam:*
+                  - kms:ScheduleKeyDeletion
+                  - kms:DisableKey
+                  - kms:PutKeyPolicy
+                  - s3:DeleteBucket
+                  - s3:PutBucketPolicy
+                  - s3:DeleteObjectVersion
+                  - dynamodb:DeleteTable
+                Resource: "*"
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+        - { Key: persona, Value: ingeniero }
+
+  # =====================================================================
+  # 3. ANALISTA DE NEGOCIO (analitica sobre curated)
+  #    Puede: consultar en Athena las tablas curated (Parquet, sin correo ni telefono y con hash).
+  #    No puede: leer ni listar raw/ (documentos y datos personales), ni la tabla DynamoDB.
+  # =====================================================================
+  RolAnalista:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Proyecto}-persona-analista"
+      Description: Analista. Solo consulta curated/ en Athena; raw/ y DynamoDB le dan AccessDenied.
+      MaxSessionDuration: !Ref DuracionSesionSegundos
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: analista
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListarSoloCuratedYResultados
+                Effect: Allow
+                Action: s3:ListBucket
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                Condition:
+                  StringLike:
+                    s3:prefix: ["curated/*", "athena-results/*"]
+              - Sid: UbicacionDelBucket
+                Effect: Allow
+                Action: s3:GetBucketLocation
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: LeerCurated
+                Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub
+                  - "${BucketArn}/curated/*"
+                  - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: ResultadosDeAthena
+                Effect: Allow
+                Action: [s3:GetObject, s3:PutObject, s3:AbortMultipartUpload]
+                Resource: !Sub
+                  - "${BucketArn}/athena-results/*"
+                  - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: ConsultasAthena
+                Effect: Allow
+                Action:
+                  - athena:StartQueryExecution
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:StopQueryExecution
+                  - athena:ListQueryExecutions
+                  - athena:GetWorkGroup
+                Resource: !Sub "arn:${AWS::Partition}:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${Proyecto}"
+              - Sid: CatalogoGlue
+                Effect: Allow
+                Action:
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:GetTable
+                  - glue:GetTables
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                Resource:
+                  - !Sub "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:catalog"
+                  - !Sub
+                    - "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:database/${Db}"
+                    - Db: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+                  - !Sub
+                    - "arn:${AWS::Partition}:glue:${AWS::Region}:${AWS::AccountId}:table/${Db}/*"
+                    - Db: { Fn::ImportValue: !Sub "${Proyecto}-glue-db" }
+              - Sid: LlaveSoloViaS3
+                Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
+              - Sid: NuncaRaw
+                Effect: Deny
+                Action: ["s3:GetObject*", "s3:PutObject*", "s3:DeleteObject*"]
+                Resource: !Sub
+                  - "${BucketArn}/raw/*"
+                  - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: NuncaListarRaw
+                Effect: Deny
+                Action: s3:ListBucket
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+                Condition:
+                  StringLike:
+                    s3:prefix: ["raw", "raw/*"]
+              - Sid: NuncaTablaOperativa
+                Effect: Deny
+                Action: "dynamodb:*"
+                Resource: "*"
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+        - { Key: persona, Value: analista }
+
+  # =====================================================================
+  # 4. AUDITOR (control interno / seguridad)
+  #    Puede: revisar configuracion (cifrado, lifecycle, politicas, roles), CloudTrail, logs,
+  #           historial de ejecuciones y la bitacora de DynamoDB.
+  #    No puede: leer el contenido de ningun objeto del lago ni cambiar nada.
+  # =====================================================================
+  RolAuditor:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${Proyecto}-persona-auditor"
+      Description: Auditor. Solo lectura de configuracion, bitacora y trazas; no lee documentos ni cambia nada.
+      MaxSessionDuration: !Ref DuracionSesionSegundos
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: auditor
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ConfiguracionDelLago
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                  - s3:GetBucketLocation
+                  - s3:GetBucketPolicy
+                  - s3:GetBucketVersioning
+                  - s3:GetEncryptionConfiguration
+                  - s3:GetLifecycleConfiguration
+                  - s3:GetBucketPublicAccessBlock
+                  - s3:GetBucketOwnershipControls
+                  - s3:GetBucketTagging
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Sid: BitacoraDynamoDB
+                Effect: Allow
+                Action:
+                  - dynamodb:Query
+                  - dynamodb:GetItem
+                  - dynamodb:DescribeTable
+                  - dynamodb:DescribeTimeToLive
+                  - dynamodb:DescribeContinuousBackups
+                Resource:
+                  - { Fn::ImportValue: !Sub "${Proyecto}-tabla-arn" }
+                  - !Sub
+                    - "${TablaArn}/index/*"
+                    - TablaArn: { Fn::ImportValue: !Sub "${Proyecto}-tabla-arn" }
+              - Sid: DescifrarSoloDynamoDB
+                Effect: Allow
+                Action: kms:Decrypt
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+              - Sid: ConfiguracionDeLlaveYRoles
+                Effect: Allow
+                Action:
+                  - kms:DescribeKey
+                  - kms:GetKeyPolicy
+                  - kms:GetKeyRotationStatus
+                  - kms:ListAliases
+                  - kms:ListResourceTags
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - iam:ListRolePolicies
+                  - iam:ListAttachedRolePolicies
+                  - iam:ListRoles
+                Resource: "*"
+              - Sid: TrazasYEjecuciones
+                Effect: Allow
+                Action:
+                  - cloudtrail:LookupEvents
+                  - cloudtrail:DescribeTrails
+                  - cloudtrail:GetTrailStatus
+                  - logs:DescribeLogGroups
+                  - logs:FilterLogEvents
+                  - logs:GetLogEvents
+                  - states:ListStateMachines
+                  - states:ListExecutions
+                  - states:DescribeExecution
+                  - states:GetExecutionHistory
+                  - cloudformation:DescribeStacks
+                  - cloudformation:GetTemplate
+                  - athena:ListQueryExecutions
+                  - athena:GetQueryExecution
+                  - athena:GetWorkGroup
+                Resource: "*"
+              - Sid: SinContenidoDelLago
+                Effect: Deny
+                Action: ["s3:GetObject*", "s3:PutObject*", "s3:DeleteObject*"]
+                Resource: !Sub
+                  - "${BucketArn}/*"
+                  - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+      Tags:
+        - { Key: proyecto, Value: !Ref Proyecto }
+        - { Key: persona, Value: auditor }
+
+Outputs:
+  RolDuenioDatosArn:
+    Value: !GetAtt RolDuenioDatos.Arn
+  RolIngenieroArn:
+    Value: !GetAtt RolIngeniero.Arn
+  RolAnalistaArn:
+    Value: !GetAtt RolAnalista.Arn
+  RolAuditorArn:
+    Value: !GetAtt RolAuditor.Arn

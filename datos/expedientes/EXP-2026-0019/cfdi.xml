@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5019" Fecha="2026-09-03T10:15:00" Moneda="MXN"
+  SubTotal="519845.13" Total="603020.35" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="ITC170823QW8" Nombre="INGENIERIA Y TUBERIAS DE CAMPECHE SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="CONTRATISTA DE OBRA CIVIL" ValorUnitario="213887.53" Importe="213887.53" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="PLÁSTICOS" ValorUnitario="305957.60" Importe="305957.60" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="83175.22">
+    <cfdi:Traslados><cfdi:Traslado Base="519845.13" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="83175.22"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="D35AC07A-AA02-17D0-CD4F-8B2B899AC252" FechaTimbrado="2026-09-03T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
