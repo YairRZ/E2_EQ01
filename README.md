@@ -1,7 +1,31 @@
-# E2_EQ01 Validador de Cartas de Contenido Nacional en AWS
+<div align="center">
 
-Cómputo en la Nube, Universidad Panamericana · Segunda entrega · **Ruta 1 (técnica)**
-Equipo EQ01: Ramiro Guzmán Galicia y Yair Eduardo Rodríguez Zavaleta · 18 de noviembre de 2026
+<img src="assets/logo-up.png" alt="Universidad Panamericana" width="360">
+
+<br><br>
+
+<sub>MAESTRÍA EN CIENCIA DE DATOS · CÓMPUTO EN LA NUBE</sub>
+
+# Validador Inteligente de Cartas de Contenido Nacional en AWS
+
+*Carta escaneada + CFDI 4.0 → Textract y Bedrock → motor de reglas → lago de datos en Athena*
+
+<br>
+
+![S3](https://img.shields.io/badge/S3-B8935A?style=flat-square) ![Step Functions](https://img.shields.io/badge/Step_Functions-B8935A?style=flat-square) ![Lambda](https://img.shields.io/badge/Lambda-B8935A?style=flat-square) ![Textract](https://img.shields.io/badge/Textract-B8935A?style=flat-square) ![Bedrock](https://img.shields.io/badge/Bedrock-B8935A?style=flat-square) ![DynamoDB](https://img.shields.io/badge/DynamoDB-B8935A?style=flat-square) ![Glue](https://img.shields.io/badge/Glue-B8935A?style=flat-square) ![Athena](https://img.shields.io/badge/Athena-B8935A?style=flat-square) ![CloudFormation](https://img.shields.io/badge/CloudFormation-B8935A?style=flat-square)
+
+![Precisión](https://img.shields.io/badge/decisiones_correctas-29%2F30-0A2C75?style=flat-square) ![Roles](https://img.shields.io/badge/pruebas_de_roles-24%2F24-0A2C75?style=flat-square)
+![Región](https://img.shields.io/badge/región-us--east--2_(Ohio)-0A2C75?style=flat-square)
+
+<br>
+
+**Entrega E2 · Ruta 1 (técnica)**<br>
+Equipo EQ01 · Ramiro Guzmán Galicia y Yair Eduardo Rodríguez Zavaleta<br>
+18 de noviembre de 2026
+
+</div>
+
+---
 
 Solución serverless que recibe Cartas de Contenido Nacional escaneadas (PDF o JPG) y su CFDI 4.0 (XML), extrae los datos con Textract y Bedrock, los valida con un motor de reglas determinista y alimenta un lago de datos en S3 consultable con Athena. Toda la solución está desplegada con CloudFormation en la región **us-east-2 (Ohio)** y se probó con 30 expedientes sintéticos: **29 de 30 decisiones correctas**.
 
