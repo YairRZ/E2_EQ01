@@ -35,6 +35,22 @@ Solución serverless que recibe Cartas de Contenido Nacional escaneadas (PDF o J
 | [`adr/`](adr/) | [ADR-001](adr/ADR-001-entrada-y-almacenamiento.md) entrada y almacenamiento, [ADR-002](adr/ADR-002-procesamiento.md) procesamiento con costo a 12 meses x1 y x3, [ADR-003](adr/ADR-003-formato-curated.md) formato de curated |
 | [`evidencias/`](evidencias/) | Capturas de consola y reportes generados por los scripts ([índice](evidencias/LEEME.md)) |
 
+## Índice de evidencias
+
+| Punto de la tarea | Evidencia | Sección |
+| --- | --- | --- |
+| Ruta 1.1 · Lago de 3 capas y consultas con bytes | [01_s3_capas.png](evidencias/01_s3_capas.png)<br>[02_athena_q3_sql.png](evidencias/02_athena_q3_sql.png)<br>[02_athena_q3.png](evidencias/02_athena_q3.png)<br>[fase4_resultado.md](evidencias/fase4_resultado.md) | [ver](#1-lago-de-3-capas-y-consultas-en-athena) |
+| Ruta 1.2 · Tablas con datos estructurados | [03_dynamodb_items.png](evidencias/03_dynamodb_items.png)<br>[03b_dynamodb_cifrado_ttl.png](evidencias/03b_dynamodb_cifrado_ttl.png)<br>[04_glue_tablas.png](evidencias/04_glue_tablas.png) | [ver](#2-tablas-con-datos-estructurados) |
+| Ruta 1.3 · Job de Glue a Parquet particionado | [05_glue_job_ok.png](evidencias/05_glue_job_ok.png)<br>[06_curated_particiones.png](evidencias/06_curated_particiones.png) | [ver](#3-job-de-glue-de-raw-a-parquet-particionado) |
+| Ruta 1.4 · Optimización de costos | [07_lifecycle.png](evidencias/07_lifecycle.png)<br>[fase1_resultado.md](evidencias/fase1_resultado.md) | [ver](#4-políticas-de-almacenamiento-y-procesamiento-para-optimizar-costos) |
+| Eventos A · Disparador | [08_eventbridge_regla.png](evidencias/08_eventbridge_regla.png) | [ver](#eventos-de-ingesta) |
+| Eventos B · Asíncrono e idempotencia | [09_api_202.png](evidencias/09_api_202.png)<br>[09b_stepfunctions_duplicado.png](evidencias/09b_stepfunctions_duplicado.png)<br>[09c_stepfunctions_ejecucion.png](evidencias/09c_stepfunctions_ejecucion.png)<br>[fase2_resultado.md](evidencias/fase2_resultado.md) | [ver](#eventos-de-ingesta) |
+| Eventos C · Falla de la fuente | [10_dlq_vacia.png](evidencias/10_dlq_vacia.png) | [ver](#eventos-de-ingesta) |
+| Eventos D · Ingesta probada con 30 expedientes | [11_stepfunctions_ejecuciones.png](evidencias/11_stepfunctions_ejecuciones.png)<br>[precision_pipeline.md](evidencias/precision_pipeline.md)<br>[fase3_resultado.md](evidencias/fase3_resultado.md) | [ver](#eventos-de-ingesta) |
+| Roles | [12_iam_roles.png](evidencias/12_iam_roles.png)<br>[12b_iam_roles_personas.png](evidencias/12b_iam_roles_personas.png)<br>[13_analista_accessdenied.png](evidencias/13_analista_accessdenied.png)<br>[fase5_resultado.md](evidencias/fase5_resultado.md) | [ver](#roles) |
+
+Descripción de cada archivo en [`evidencias/LEEME.md`](evidencias/LEEME.md).
+
 ## Arquitectura
 
 ![Arquitectura de ingesta: de la carga en S3 al resultado](arquitectura/ingesta.png)
