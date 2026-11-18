@@ -1,7 +1,24 @@
+<p align="center">
+  <img src="assets/portada.png" alt="Validador de Cartas de Contenido Nacional en AWS · Universidad Panamericana · Cómputo en la Nube · Equipo 01" width="100%">
+</p>
+
+<p align="center">
+  <img alt="AWS us-east-2" src="https://img.shields.io/badge/AWS-us--east--2-FF9900?logo=amazonwebservices&logoColor=white">
+  <img alt="CloudFormation" src="https://img.shields.io/badge/IaC-CloudFormation-E7157B">
+  <img alt="Serverless" src="https://img.shields.io/badge/arquitectura-serverless-232F3E">
+  <img alt="Precisión" src="https://img.shields.io/badge/precisi%C3%B3n-29%2F30-2E7D32">
+  <img alt="Ruta 1" src="https://img.shields.io/badge/ruta-1%20t%C3%A9cnica-B8925A">
+</p>
+
 # E2_EQ01 Validador de Cartas de Contenido Nacional en AWS
 
-Cómputo en la Nube, Universidad Panamericana · Segunda entrega · **Ruta 1 (técnica)**
-Equipo EQ01: Ramiro Guzmán Galicia y Yair Eduardo Rodríguez Zavaleta · 18 de noviembre de 2026
+| | |
+| --- | --- |
+| **Materia** | Cómputo en la Nube |
+| **Profesor** | Adrián Villa López |
+| **Programa** | Maestría en Ciencia de Datos, Facultad de Ingeniería, Universidad Panamericana |
+| **Equipo 01** | Ramiro Guzmán Galicia · Yair Eduardo Rodríguez Zavaleta |
+| **Entrega** | Segunda entrega, Ruta 1 (técnica) · 18 de noviembre de 2026 |
 
 Solución serverless que recibe Cartas de Contenido Nacional escaneadas (PDF o JPG) y su CFDI 4.0 (XML), extrae los datos con Textract y Bedrock, los valida con un motor de reglas determinista y alimenta un lago de datos en S3 consultable con Athena. Toda la solución está desplegada con CloudFormation en la región **us-east-2 (Ohio)** y se probó con 30 expedientes sintéticos: **29 de 30 decisiones correctas**.
 
