@@ -1,9 +1,9 @@
 # Fase 2 — Resultado (2026-11-18T02:50:44Z)
 
 - Stack: `cn-eq01-ingesta` en `us-east-2`
-- API: `https://4ums9ssvr0.execute-api.us-east-2.amazonaws.com`
-- Máquina: `arn:aws:states:us-east-2:143094436742:stateMachine:cn-eq01-ingesta`
-- DLQ: `https://sqs.us-east-2.amazonaws.com/143094436742/cn-eq01-ingesta-dlq`
+- API: `https://<API_ID>.execute-api.us-east-2.amazonaws.com`
+- Máquina: `arn:aws:states:us-east-2:<ACCOUNT_ID>:stateMachine:cn-eq01-ingesta`
+- DLQ: `https://sqs.us-east-2.amazonaws.com/<ACCOUNT_ID>/cn-eq01-ingesta-dlq`
 
 ## Respuestas de la API
 

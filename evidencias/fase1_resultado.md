@@ -1,7 +1,7 @@
 # Fase 1 — Resultado (2026-11-18T02:46:11Z)
 
 - Stack: `cn-eq01-base` en `us-east-2`
-- Bucket del lago: `cn-eq01-lago-143094436742-us-east-2`
+- Bucket del lago: `cn-eq01-lago-<ACCOUNT_ID>-us-east-2`
 - Tabla DynamoDB: `cn-eq01-expedientes` · Base de Glue: `cn_eq01` · Workgroup de Athena: `cn-eq01`
 
 ## Capas del lago
@@ -41,7 +41,7 @@ Grupo X:Explotación de gas y petróleo | 6
             {
                 "ApplyServerSideEncryptionByDefault": {
                     "SSEAlgorithm": "aws:kms",
-                    "KMSMasterKeyID": "arn:aws:kms:us-east-2:143094436742:key/6dffe94c-929e-4fcc-91f7-b84a13ee0f35"
+                    "KMSMasterKeyID": "arn:aws:kms:us-east-2:<ACCOUNT_ID>:key/<KMS_KEY_ID>"
                 },
                 "BucketKeyEnabled": true,
                 "BlockedEncryptionTypes": {

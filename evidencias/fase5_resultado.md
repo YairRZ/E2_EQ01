@@ -32,7 +32,7 @@
 | Dueño de datos | `s3:DeleteObject` | `s3://lago/raw/expedientes/x` | explicitDeny | ✅ |
 | Dueño de datos | `s3:PutBucketPolicy` | `s3://lago` | explicitDeny | ✅ |
 | Ingeniero | `s3:PutObject` | `s3://lago/curated/x` | allowed | ✅ |
-| Ingeniero | `kms:ScheduleKeyDeletion` | `arn:aws:kms:us-east-2:143094436742:key/6dffe94c-929e-4fcc-91f7-b84a13ee0f35` | explicitDeny | ✅ |
+| Ingeniero | `kms:ScheduleKeyDeletion` | `arn:aws:kms:us-east-2:<ACCOUNT_ID>:key/<KMS_KEY_ID>` | explicitDeny | ✅ |
 | Analista | `s3:GetObject` | `s3://lago/curated/x` | allowed | ✅ |
 | Analista | `s3:GetObject` | `s3://lago/raw/x` | explicitDeny | ✅ |
 | Auditor | `s3:PutObject` | `s3://lago/raw/x` | explicitDeny | ✅ |
