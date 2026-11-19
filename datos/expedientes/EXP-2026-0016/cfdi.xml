@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5016" Fecha="2026-11-06T10:15:00" Moneda="MXN"
+  SubTotal="302253.37" Total="350613.91" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="MEV190104ZX2" Nombre="MANTENIMIENTO ELECTRICO VILLAHERMOSA SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="OFICINAS PORTÁTILES" ValorUnitario="302253.37" Importe="302253.37" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="48360.54">
+    <cfdi:Traslados><cfdi:Traslado Base="302253.37" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="48360.54"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="B5A5F8E6-B639-1F04-2852-4385D9F2DD0D" FechaTimbrado="2026-11-06T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

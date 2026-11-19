@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5011" Fecha="2026-11-09T10:15:00" Moneda="MXN"
+  SubTotal="695690.59" Total="807001.08" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="PIN150707HJ4" Nombre="PERFORACION E INSTRUMENTACION NACIONAL SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SISTEMA DE SUSPENSIÓN DE LÍNEA DE LODO" ValorUnitario="386416.97" Importe="386416.97" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="BOMBAS" ValorUnitario="196165.44" Importe="196165.44" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="MATERIAL DE EMPAQUETADURAS" ValorUnitario="113108.18" Importe="113108.18" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="111310.49">
+    <cfdi:Traslados><cfdi:Traslado Base="695690.59" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="111310.49"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="2451E5A4-11D0-59B2-6699-CD99A847BCE7" FechaTimbrado="2026-11-09T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

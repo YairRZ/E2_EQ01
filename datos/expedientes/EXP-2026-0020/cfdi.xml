@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5020" Fecha="2026-10-07T10:15:00" Moneda="USD" TipoCambio="19.1100"
+  SubTotal="50123.91" Total="58143.74" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="CIS160930RT5" Nombre="CONSTRUCCIONES INDUSTRIALES DEL SURESTE SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="SISTEMAS DE CONTROL DE INUNDACIÓN" ValorUnitario="20035.58" Importe="20035.58" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="MANEJO DE DESPERDICIOS" ValorUnitario="6198.43" Importe="6198.43" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="FOTOGRAFÍA / AUDIO VISUALES" ValorUnitario="16403.62" Importe="16403.62" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="PREFABRICADOS" ValorUnitario="7486.28" Importe="7486.28" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="8019.83">
+    <cfdi:Traslados><cfdi:Traslado Base="50123.91" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="8019.83"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="76876C62-4C61-845E-FA7E-5D9405D1FB63" FechaTimbrado="2026-10-07T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

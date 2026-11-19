@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5027" Fecha="2026-09-13T10:15:00" Moneda="MXN"
+  SubTotal="496338.48" Total="575752.64" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="MEV190104ZX2" Nombre="MANTENIMIENTO ELECTRICO VILLAHERMOSA SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="PROTECCIÓN PASIVA CONTRA INCENDIOS" ValorUnitario="142868.53" Importe="142868.53" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="PAISAJISMO" ValorUnitario="49402.18" Importe="49402.18" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="COMPACTADORES DE BASURA" ValorUnitario="164709.11" Importe="164709.11" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="PRUEBAS/INSPECCIÓN DE INSTRUMENTACIÓN" ValorUnitario="139358.66" Importe="139358.66" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="79414.16">
+    <cfdi:Traslados><cfdi:Traslado Base="496338.48" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="79414.16"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="755D814B-5F5B-A255-E544-9887B36AB3ED" FechaTimbrado="2026-09-13T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

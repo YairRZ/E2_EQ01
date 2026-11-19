@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5023" Fecha="2026-09-11T10:15:00" Moneda="MXN"
+  SubTotal="608640.63" Total="706023.13" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="CIS160930RT5" Nombre="CONSTRUCCIONES INDUSTRIALES DEL SURESTE SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="VÁLVULAS - DE MACHO" ValorUnitario="392989.54" Importe="392989.54" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="HUMIDIFICADORES" ValorUnitario="215651.09" Importe="215651.09" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="97382.50">
+    <cfdi:Traslados><cfdi:Traslado Base="608640.63" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="97382.50"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="950DF1A0-7AAF-2001-9912-316AFD9E8E20" FechaTimbrado="2026-09-11T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5006" Fecha="2026-10-01T10:15:00" Moneda="MXN"
+  SubTotal="1011762.57" Total="1173644.58" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="PIN150707HJ4" Nombre="PERFORACION E INSTRUMENTACION NACIONAL SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="MANTENIMIENTO DE GRÚA" ValorUnitario="351229.58" Importe="351229.58" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="REJAS/PORTONES" ValorUnitario="98211.55" Importe="98211.55" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="BARRERAS DE SEGURIDAD-INTRÍNSECAS" ValorUnitario="402720.66" Importe="402720.66" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="TERMINACIONES DE CABLE" ValorUnitario="159600.78" Importe="159600.78" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="161882.01">
+    <cfdi:Traslados><cfdi:Traslado Base="1011762.57" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="161882.01"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="7BC67E1F-C64E-E6E3-89C5-B31AEB6C1016" FechaTimbrado="2026-10-01T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

@@ -1,0 +1,639 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  E2_EQ01 Fase 2 - Ingesta asincrona del Validador de Cartas de Contenido Nacional.
+  Cognito y API HTTP entregan URLs prefirmadas; manifest.json en S3 dispara
+  Step Functions (registrar con idempotencia y leer CFDI). La entrega fallida va a una DLQ.
+
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+  com.aws.cloudformation.Context:
+    arch: "API 202 -> S3 manifest -> EventBridge -> Step Functions -> Lambda"
+    must:
+      - "Solo us-east-2. Importa el lago, la tabla y la CMK del stack cn-eq01-base."
+      - "La API no recibe el archivo: URLs prefirmadas de 15 min y respuesta 202."
+      - "Un manifest repetido no vuelve a procesar el expediente."
+      - "Lambdas arm64, logs 14 dias, cifrado con la CMK del proyecto."
+    ref:
+      - "E2_EQ01/README.md"
+
+Parameters:
+  Proyecto:
+    Type: String
+    Default: cn-eq01
+    AllowedPattern: "^[a-z0-9-]{3,20}$"
+    Description: Mismo valor que en el stack base; forma el nombre de los exports.
+  HashApi:
+    Type: String
+    AllowedPattern: "^[a-f0-9]{12}$"
+    Description: 12 caracteres del SHA-256 del zip de src/api. Lo calcula el script de despliegue.
+  HashExpediente:
+    Type: String
+    AllowedPattern: "^[a-f0-9]{12}$"
+    Description: 12 caracteres del SHA-256 del zip de src/expediente.
+  HashLeerCfdi:
+    Type: String
+    AllowedPattern: "^[a-f0-9]{12}$"
+    Description: 12 caracteres del SHA-256 del zip de src/leer_cfdi.
+
+Resources:
+  # ---------- Cognito: solo usuarios creados por el script, sin alta publica ----------
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: "JWT para la API. Alta solo por admin: todavia no hay portal."
+        must:
+          - "Sin alta publica."
+          - "Contrasena de al menos 12 caracteres."
+        mutable: change-with-constraints
+    Properties:
+      UserPoolName: !Sub "${AWS::StackName}-proveedores"
+      UsernameAttributes: [email]
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: admin_only
+            Priority: 1
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      UserPoolId: !Ref UserPool
+      ClientName: !Sub "${AWS::StackName}-script"
+      GenerateSecret: false
+      ExplicitAuthFlows:
+        - ALLOW_ADMIN_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      PreventUserExistenceErrors: ENABLED
+      AccessTokenValidity: 1
+      IdTokenValidity: 1
+      TokenValidityUnits:
+        AccessToken: hours
+        IdToken: hours
+
+  # ---------- Lambdas (el zip vive en el lago con SSE-S3 para que Lambda pueda leerlo) ----------
+  LogApi:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-api"
+      RetentionInDays: 14
+
+  RolApi:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: api
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: logs:CreateLogStream
+                Resource: !GetAtt LogApi.Arn
+              - Effect: Allow
+                Action: logs:PutLogEvents
+                Resource: !Sub "${LogApi.Arn}:*"
+              - Effect: Allow
+                Action: [dynamodb:PutItem, dynamodb:GetItem, dynamodb:Query]
+                Resource:
+                  - Fn::ImportValue: !Sub "${Proyecto}-tabla-arn"
+                  - Fn::Sub:
+                      - "${TablaArn}/index/*"
+                      - TablaArn: { Fn::ImportValue: !Sub "${Proyecto}-tabla-arn" }
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource:
+                  Fn::Sub:
+                    - "${BucketArn}/raw/expedientes/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+                Condition:
+                  StringEquals:
+                    kms:ViaService:
+                      - !Sub "s3.${AWS::Region}.amazonaws.com"
+                      - !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+
+  FuncionApi:
+    Type: AWS::Lambda::Function
+    DependsOn: LogApi
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-api"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: app.handler
+      Role: !GetAtt RolApi.Arn
+      Timeout: 10
+      MemorySize: 256
+      LoggingConfig:
+        LogGroup: !Ref LogApi
+      Environment:
+        Variables:
+          LAGO_BUCKET: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+          TABLA: { Fn::ImportValue: !Sub "${Proyecto}-tabla" }
+      Code:
+        S3Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        S3Key: !Sub "despliegue/fase2/api-${HashApi}.zip"
+
+  PermisoApi:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref FuncionApi
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ApiHttp}/*/*"
+
+  LogExpediente:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-expediente"
+      RetentionInDays: 14
+
+  RolExpediente:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: expediente
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: logs:CreateLogStream
+                Resource: !GetAtt LogExpediente.Arn
+              - Effect: Allow
+                Action: logs:PutLogEvents
+                Resource: !Sub "${LogExpediente.Arn}:*"
+              - Effect: Allow
+                Action: [dynamodb:UpdateItem, dynamodb:PutItem, dynamodb:GetItem]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-tabla-arn" }
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  Fn::Sub:
+                    - "${BucketArn}/raw/expedientes/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+                Condition:
+                  StringEquals:
+                    kms:ViaService:
+                      - !Sub "s3.${AWS::Region}.amazonaws.com"
+                      - !Sub "dynamodb.${AWS::Region}.amazonaws.com"
+
+  FuncionExpediente:
+    Type: AWS::Lambda::Function
+    DependsOn: LogExpediente
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-expediente"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: app.handler
+      Role: !GetAtt RolExpediente.Arn
+      Timeout: 30
+      MemorySize: 256
+      LoggingConfig:
+        LogGroup: !Ref LogExpediente
+      Environment:
+        Variables:
+          TABLA: { Fn::ImportValue: !Sub "${Proyecto}-tabla" }
+      Code:
+        S3Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        S3Key: !Sub "despliegue/fase2/expediente-${HashExpediente}.zip"
+
+  LogLeerCfdi:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/${AWS::StackName}-leer-cfdi"
+      RetentionInDays: 14
+
+  RolLeerCfdi:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: leer-cfdi
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: logs:CreateLogStream
+                Resource: !GetAtt LogLeerCfdi.Arn
+              - Effect: Allow
+                Action: logs:PutLogEvents
+                Resource: !Sub "${LogLeerCfdi.Arn}:*"
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  Fn::Sub:
+                    - "${BucketArn}/raw/expedientes/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Effect: Allow
+                Action: s3:PutObject
+                Resource:
+                  Fn::Sub:
+                    - "${BucketArn}/raw/extracciones/cfdi/*"
+                    - BucketArn: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago-arn" }
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub "s3.${AWS::Region}.amazonaws.com"
+
+  FuncionLeerCfdi:
+    Type: AWS::Lambda::Function
+    DependsOn: LogLeerCfdi
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-leer-cfdi"
+      Runtime: python3.12
+      Architectures: [arm64]
+      Handler: app.handler
+      Role: !GetAtt RolLeerCfdi.Arn
+      Timeout: 30
+      MemorySize: 256
+      LoggingConfig:
+        LogGroup: !Ref LogLeerCfdi
+      Code:
+        S3Bucket: { Fn::ImportValue: !Sub "${Proyecto}-bucket-lago" }
+        S3Key: !Sub "despliegue/fase2/leer-cfdi-${HashLeerCfdi}.zip"
+
+  # ---------- API HTTP: confirma en menos de 1 s y no espera a Textract ----------
+  ApiHttp:
+    Type: AWS::ApiGatewayV2::Api
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: "HTTP API con JWT. 202 porque Textract no cabe en el limite de 30 s."
+        must:
+          - "Toda ruta exige el autorizador de Cognito."
+          - "Integracion proxy formato 2.0, que es el que lee la Lambda."
+        mutable: change-with-constraints
+    Properties:
+      Name: !Sub "${AWS::StackName}"
+      ProtocolType: HTTP
+
+  Autorizador:
+    Type: AWS::ApiGatewayV2::Authorizer
+    Properties:
+      ApiId: !Ref ApiHttp
+      AuthorizerType: JWT
+      Name: cognito
+      IdentitySource:
+        - $request.header.Authorization
+      JwtConfiguration:
+        Audience:
+          - !Ref UserPoolClient
+        Issuer: !Sub "https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}"
+
+  IntegracionApi:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref ApiHttp
+      IntegrationType: AWS_PROXY
+      IntegrationUri: !Sub "arn:${AWS::Partition}:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${FuncionApi.Arn}/invocations"
+      PayloadFormatVersion: "2.0"
+
+  RutaCrear:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiHttp
+      RouteKey: "POST /expedientes"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref Autorizador
+      Target: !Sub "integrations/${IntegracionApi}"
+
+  RutaEnviar:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiHttp
+      RouteKey: "POST /expedientes/{id}/enviar"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref Autorizador
+      Target: !Sub "integrations/${IntegracionApi}"
+
+  RutaConsultar:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref ApiHttp
+      RouteKey: "GET /expedientes/{id}"
+      AuthorizationType: JWT
+      AuthorizerId: !Ref Autorizador
+      Target: !Sub "integrations/${IntegracionApi}"
+
+  Etapa:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref ApiHttp
+      StageName: $default
+      AutoDeploy: true
+
+  # ---------- DLQ: si EventBridge no logra arrancar el flujo ----------
+  ColaDlq:
+    Type: AWS::SQS::Queue
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: "La falla de entrega no se pierde. El reproceso no duplica por la condicion en DynamoDB."
+        must:
+          - "Cifrada con la CMK del proyecto."
+          - "Retiene el mensaje 14 dias."
+        mutable: change-with-constraints
+    Properties:
+      QueueName: !Sub "${AWS::StackName}-dlq"
+      MessageRetentionPeriod: 1209600
+      KmsMasterKeyId: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+
+  PoliticaColaDlq:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref ColaDlq]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: RolDeEventos
+            Effect: Allow
+            Principal:
+              AWS: !GetAtt RolEventos.Arn
+            Action: sqs:SendMessage
+            Resource: !GetAtt ColaDlq.Arn
+
+  AlarmaDlq:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-dlq-con-mensajes"
+      AlarmDescription: Hay eventos de ingesta que no pudieron arrancar el flujo.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt ColaDlq.QueueName
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # ---------- Orquestacion: registrar y leer el CFDI. La Fase 3 alarga esta maquina. ----------
+  RolMaquina:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: states.amazonaws.com }
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+      Policies:
+        - PolicyName: invocar
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: lambda:InvokeFunction
+                Resource:
+                  - !GetAtt FuncionExpediente.Arn
+                  - !GetAtt FuncionLeerCfdi.Arn
+
+  MaquinaEstados:
+    Type: AWS::StepFunctions::StateMachine
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: "STANDARD porque la Fase 3 espera a Textract y a una persona, mas de los 5 min de Express."
+        must:
+          - "El duplicado termina en exito con idempotencia=DUPLICADO_RECHAZADO, no en fallo."
+          - "Un fallo al leer el CFDI marca ERROR en DynamoDB y luego falla la ejecucion."
+        mutable: review-required
+    Properties:
+      StateMachineName: !Sub "${AWS::StackName}"
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt RolMaquina.Arn
+      DefinitionString: !Sub
+        - |
+          {
+            "Comment": "Fase 2: manifest en S3, registrar con idempotencia y leer CFDI.",
+            "StartAt": "Registrar",
+            "States": {
+              "Registrar": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                  "FunctionName": "${FnExpediente}",
+                  "Payload": {
+                    "accion": "registrar",
+                    "ejecucion.$": "$.id",
+                    "evento.$": "$"
+                  }
+                },
+                "ResultPath": "$.registro",
+                "TimeoutSeconds": 60,
+                "Retry": [
+                  {
+                    "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2
+                  }
+                ],
+                "Catch": [
+                  {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "FalloRegistro"}
+                ],
+                "Next": "EvaluarRegistro"
+              },
+              "EvaluarRegistro": {
+                "Type": "Choice",
+                "Choices": [
+                  {
+                    "And": [
+                      {"Variable": "$.registro.Payload.duplicado", "IsPresent": true},
+                      {"Variable": "$.registro.Payload.duplicado", "BooleanEquals": true}
+                    ],
+                    "Next": "DuplicadoRechazado"
+                  },
+                  {
+                    "And": [
+                      {"Variable": "$.registro.Payload.invalido", "IsPresent": true},
+                      {"Variable": "$.registro.Payload.invalido", "BooleanEquals": true}
+                    ],
+                    "Next": "FalloRegistro"
+                  }
+                ],
+                "Default": "LeerCfdi"
+              },
+              "LeerCfdi": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                  "FunctionName": "${FnLeerCfdi}",
+                  "Payload": {
+                    "expediente_id.$": "$.registro.Payload.expediente_id",
+                    "bucket.$": "$.registro.Payload.bucket",
+                    "cfdi_key.$": "$.registro.Payload.cfdi_key"
+                  }
+                },
+                "ResultPath": "$.cfdi",
+                "TimeoutSeconds": 60,
+                "Retry": [
+                  {
+                    "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+                    "IntervalSeconds": 2,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2
+                  }
+                ],
+                "Catch": [
+                  {"ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "MarcarError"}
+                ],
+                "Next": "IngestaLista"
+              },
+              "IngestaLista": {"Type": "Succeed"},
+              "DuplicadoRechazado": {
+                "Type": "Pass",
+                "Result": "DUPLICADO_RECHAZADO",
+                "ResultPath": "$.idempotencia",
+                "Next": "FinDuplicado"
+              },
+              "FinDuplicado": {"Type": "Succeed"},
+              "MarcarError": {
+                "Type": "Task",
+                "Resource": "arn:aws:states:::lambda:invoke",
+                "Parameters": {
+                  "FunctionName": "${FnExpediente}",
+                  "Payload": {
+                    "accion": "error",
+                    "expediente_id.$": "$.registro.Payload.expediente_id",
+                    "error.$": "$.error"
+                  }
+                },
+                "ResultPath": "$.marcado",
+                "Catch": [
+                  {"ErrorEquals": ["States.ALL"], "ResultPath": "$.errorMarcado", "Next": "FalloTecnico"}
+                ],
+                "Next": "FalloTecnico"
+              },
+              "FalloRegistro": {
+                "Type": "Fail",
+                "Error": "RegistroInvalido",
+                "Cause": "El manifest no se pudo registrar"
+              },
+              "FalloTecnico": {
+                "Type": "Fail",
+                "Error": "IngestaFallida",
+                "Cause": "Fallo tecnico al leer el CFDI"
+              }
+            }
+          }
+        - FnExpediente: !GetAtt FuncionExpediente.Arn
+          FnLeerCfdi: !GetAtt FuncionLeerCfdi.Arn
+
+  RolEventos:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: iniciar-y-dlq
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref MaquinaEstados
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt ColaDlq.Arn
+              - Effect: Allow
+                Action: [kms:Decrypt, kms:GenerateDataKey]
+                Resource: { Fn::ImportValue: !Sub "${Proyecto}-kms-arn" }
+                Condition:
+                  StringEquals:
+                    kms:ViaService: !Sub "sqs.${AWS::Region}.amazonaws.com"
+
+  ReglaManifest:
+    Type: AWS::Events::Rule
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: "El manifest prueba que carta y CFDI ya estan. Cron o el XML suelto arrancarian a medias."
+        must:
+          - "Solo el objeto raw/expedientes/*/manifest.json."
+          - "Dos reintentos y despues la DLQ."
+        mutable: change-with-constraints
+    Properties:
+      Name: !Sub "${AWS::StackName}-manifest"
+      State: ENABLED
+      EventPattern:
+        source: [aws.s3]
+        detail-type: ["Object Created"]
+        detail:
+          bucket:
+            name:
+              - Fn::ImportValue: !Sub "${Proyecto}-bucket-lago"
+          object:
+            key:
+              - wildcard: "raw/expedientes/*/manifest.json"
+      Targets:
+        - Id: iniciar-flujo
+          Arn: !Ref MaquinaEstados
+          RoleArn: !GetAtt RolEventos.Arn
+          DeadLetterConfig:
+            Arn: !GetAtt ColaDlq.Arn
+          RetryPolicy:
+            MaximumRetryAttempts: 2
+            MaximumEventAgeInSeconds: 3600
+
+Outputs:
+  ApiUrl:
+    Description: Base de la API HTTP. Las rutas cuelgan de esta URL.
+    Value: !GetAtt ApiHttp.ApiEndpoint
+    Export: { Name: !Sub "${Proyecto}-api-url" }
+  UserPoolId:
+    Description: User pool de proveedores de prueba.
+    Value: !Ref UserPool
+    Export: { Name: !Sub "${Proyecto}-user-pool" }
+  UserPoolClientId:
+    Description: Cliente que usa el script para pedir el IdToken.
+    Value: !Ref UserPoolClient
+    Export: { Name: !Sub "${Proyecto}-user-pool-client" }
+  MaquinaArn:
+    Description: Maquina de estados de la ingesta.
+    Value: !Ref MaquinaEstados
+    Export: { Name: !Sub "${Proyecto}-maquina-arn" }
+  ColaDlqUrl:
+    Description: Cola de eventos que no pudieron arrancar el flujo.
+    Value: !Ref ColaDlq
+    Export: { Name: !Sub "${Proyecto}-dlq-url" }
+  ColaDlqNombre:
+    Description: Nombre de la DLQ, para la captura de la consola.
+    Value: !GetAtt ColaDlq.QueueName

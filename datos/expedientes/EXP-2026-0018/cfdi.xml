@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5018" Fecha="2026-11-04T10:15:00" Moneda="MXN"
+  SubTotal="979995.54" Total="1136794.83" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="MEV190104ZX2" Nombre="MANTENIMIENTO ELECTRICO VILLAHERMOSA SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="DISYUNTORES" ValorUnitario="396359.35" Importe="396359.35" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="LOGÍSTICA" ValorUnitario="81897.73" Importe="81897.73" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="ILUMINACIÓN GENERAL" ValorUnitario="302788.48" Importe="302788.48" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="RENTA/VENTA DE EQUIPO DE CONSTRUCCIÓN" ValorUnitario="198949.98" Importe="198949.98" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="156799.29">
+    <cfdi:Traslados><cfdi:Traslado Base="979995.54" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="156799.29"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="49A22441-0AC4-DE85-4A5B-1AFF257F7595" FechaTimbrado="2026-11-04T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>

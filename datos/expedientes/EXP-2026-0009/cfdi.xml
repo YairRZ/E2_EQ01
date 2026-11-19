@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+  Version="4.0" Serie="A" Folio="5009" Fecha="2026-11-06T10:15:00" Moneda="MXN"
+  SubTotal="583176.77" Total="676485.05" TipoDeComprobante="I" Exportacion="01" MetodoPago="PPD" LugarExpedicion="86000">
+  <cfdi:Emisor Rfc="CIS160930RT5" Nombre="CONSTRUCCIONES INDUSTRIALES DEL SURESTE SA DE CV" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="OEG150301AB1" Nombre="OPERADORA ENERGETICA DEL GOLFO SA DE CV" UsoCFDI="G03" DomicilioFiscalReceptor="86000" RegimenFiscalReceptor="601"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="TERMOTRATAMIENTO POSTERIOR A LA SOLDADURA" ValorUnitario="161906.01" Importe="161906.01" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="EQUIPO PARA EL PISO DE PERFORACIÓN/ ESTRUCTURA" ValorUnitario="377556.99" Importe="377556.99" ObjetoImp="02"/>
+    <cfdi:Concepto ClaveProdServ="72141100" Cantidad="1" ClaveUnidad="E48" Descripcion="VÁLVULAS DE ALIVIO" ValorUnitario="43713.77" Importe="43713.77" ObjetoImp="02"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="93308.28">
+    <cfdi:Traslados><cfdi:Traslado Base="583176.77" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="93308.28"/></cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital Version="1.1" UUID="4944051B-E726-BE23-E776-B886D534EE1D" FechaTimbrado="2026-11-06T10:16:02" RfcProvCertif="SAT970701NN3"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
